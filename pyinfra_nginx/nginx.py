@@ -21,7 +21,7 @@ def _install_nginx():
         _sudo = True,
     )
 
-def add_nginx_domain(domain: str, config_path: str, enabled=True):
+def add_nginx_domain(domain: str, config_path: str, enabled=True, acmetool=True):
     """Let a domain be handled by nginx, create a Let's Encrypt certificate for it, and deploy the config.
 
     :param domain: the domain of the website
@@ -33,7 +33,8 @@ def add_nginx_domain(domain: str, config_path: str, enabled=True):
     )
     need_restart = default_config_link.changed
 
-    deploy_acmetool(nginx_hook=True, domains=[domain])
+    if acmetool:
+        deploy_acmetool(nginx_hook=True, domains=[domain])
 
     if enabled:
         config = files.put(
