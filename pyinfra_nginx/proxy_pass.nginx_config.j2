@@ -14,6 +14,4 @@ server {
     listen 443 ssl http2;
     ssl_certificate /var/lib/acme/live/{{ domain }}/fullchain; # managed by acmetool
     ssl_certificate_key /var/lib/acme/live/{{ domain }}/privkey; # managed by acmetool
-    include /etc/letsencrypt/options-ssl-nginx.conf;
-    ssl_dhparam /etc/letsencrypt/ssl-dhparams.pem;
 }

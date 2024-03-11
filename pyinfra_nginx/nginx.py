@@ -31,7 +31,12 @@ def add_nginx_domain(domain: str, config_path: str = None, proxy_port: int = Non
     default_config_link = files.link(
         path="/etc/nginx/sites-enabled/default", present=False
     )
-    need_restart = default_config_link.changed
+    if default_config_link.changed:
+        systemd.service(
+            name="reload nginx",
+            service="nginx.service",
+            reloaded=True,
+        )
 
     if acmetool:
         deploy_acmetool(nginx_hook=True, domains=[domain])
