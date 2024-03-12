@@ -18,7 +18,6 @@ def deploy_nginx():
         packages = ["nginx-extras"],
     )
 
-
 def add_nginx_domain(domain: str, config_path: str = None, proxy_port: int = None, enabled=True, acmetool=True):
     """Let a domain be handled by nginx, create a Let's Encrypt certificate for it, and deploy the config.
 
@@ -68,13 +67,11 @@ def add_nginx_domain(domain: str, config_path: str = None, proxy_port: int = Non
             present=enabled,
         )
         if config.changed or config_link.changed:
-            need_restart = True
-
-    systemd.service(
-        name="NGINX should be enabled and running",
-        service="nginx.service",
-        running=True,
-        enabled=True,
-        restarted=need_restart,
-    )
+            systemd.service(
+                name="NGINX should be enabled and running",
+                service="nginx.service",
+                running=True,
+                enabled=True,
+                restarted=True,
+            )
 
