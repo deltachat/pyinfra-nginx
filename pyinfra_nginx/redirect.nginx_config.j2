@@ -1,0 +1,12 @@
+server {
+	server_name {{ domain }};
+
+    return 301 {{ redirect }};
+
+    listen [::]:443 ssl;
+    listen 443 ssl;
+    ssl_certificate /var/lib/acme/live/{{ domain }}/fullchain;
+    ssl_certificate_key /var/lib/acme/live/{{ domain }}/privkey;
+    include /etc/letsencrypt/options-ssl-nginx.conf;
+    ssl_dhparam /etc/letsencrypt/ssl-dhparams.pem;
+}

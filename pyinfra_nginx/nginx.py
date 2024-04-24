@@ -18,13 +18,21 @@ def deploy_nginx():
         packages = ["nginx-extras"],
     )
 
-def add_nginx_domain(domain: str, config_path: str = None, webroot: str = None, proxy_port: int = None, enabled=True, acmetool=True):
+def add_nginx_domain(
+        domain: str,
+        config_path: str = None,
+        webroot: str = None,
+        proxy_port: int = None,
+        redirect: str = None,
+        enabled=True,
+        acmetool=True):
     """Let a domain be handled by nginx, create a Let's Encrypt certificate for it, and deploy the config.
 
     :param domain: the domain of the website
     :param config_path: the local path to the nginx config file
     :param webroot: path to a webroot directory, e.g. /var/www/staging/. Generates its own config from template.
     :param proxy_port: proxy_pass all HTTP traffic to some internal port
+    :param redirect: where to 301 redirect to, e.g. https://i.delta.chat$request_uri
     :param enabled: whether the site should be enabled at /etc/nginx/sites-enabled
     :param acmetool: whether acmetool should fetch TLS certs for the domain
     """
@@ -69,6 +77,16 @@ def add_nginx_domain(domain: str, config_path: str = None, webroot: str = None, 
                 mode="644",
                 domain=domain,
                 proxy_port=proxy_port,
+            )
+        elif redirect:
+            config = files.template(
+                src=importlib.resources.files(__package__) / "redirect.nginx_config.j2",
+                dest=f"/etc/nginx/sites-available/{domain}",
+                user="root",
+                group="root",
+                mode="644",
+                domain=domain,
+                redirect=redirect,
             )
         config_link = files.link(
             path=f"/etc/nginx/sites-enabled/{domain}",
