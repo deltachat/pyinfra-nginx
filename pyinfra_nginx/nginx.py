@@ -28,6 +28,13 @@ def add_nginx_domain(
         acmetool=True):
     """Let a domain be handled by nginx, create a Let's Encrypt certificate for it, and deploy the config.
 
+    This method supports 3 template configs for configuring your site:
+    - "webroot" for serving a static page,
+    - "proxy_port" for passing traffic to a separate application listening on some port,
+    - and "redirect" for redirecting to a different website with a 301 HTTP status code.
+    - You can use "config_path" if your site is so special it needs a custom config.
+    These 4 options are mutually exclusive.
+
     :param domain: the domain of the website
     :param config_path: the local path to the nginx config file
     :param webroot: path to a webroot directory, e.g. /var/www/staging/. Generates its own config from template.
