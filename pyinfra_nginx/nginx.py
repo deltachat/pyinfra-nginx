@@ -7,6 +7,7 @@ from pyinfra.operations import files, server, apt, systemd
 from pyinfra.facts.deb import DebPackages
 from pyinfra_acmetool import deploy_acmetool
 
+
 def deploy_nginx():
     if not host.get_fact(DebPackages):
         raise DeployError(("Can't deploy prerequisites on non-deb system"))
@@ -14,18 +15,21 @@ def deploy_nginx():
     apt.update(cache_time=3600 * 24)
 
     apt.packages(
-        name = "Install nginx-extras",
-        packages = ["nginx-extras"],
+        name="Install nginx-extras",
+        packages=["nginx-extras"],
     )
 
+
 def add_nginx_domain(
-        domain: str,
-        config_path: str = None,
-        webroot: str = None,
-        proxy_port: int = None,
-        redirect: str = None,
-        enabled=True,
-        acmetool=True):
+    domain: str,
+    config_path: str = None,
+    webroot: str = None,
+    proxy_port: int = None,
+    redirect: str = None,
+    enabled=True,
+    acmetool=True,
+    skip_restart=False,
+):
     """Let a domain be handled by nginx, create a Let's Encrypt certificate for it, and deploy the config.
 
     This method supports 3 template configs for configuring your site:
@@ -42,6 +46,7 @@ def add_nginx_domain(
     :param redirect: where to 301 redirect to, e.g. https://i.delta.chat$request_uri
     :param enabled: whether the site should be enabled at /etc/nginx/sites-enabled
     :param acmetool: whether acmetool should fetch TLS certs for the domain
+    :param skip_restart: set True if the nginx restart is done later anyway
     """
     default_config_link = files.link(
         path="/etc/nginx/sites-enabled/default", present=False
@@ -66,7 +71,7 @@ def add_nginx_domain(
                 mode="644",
             )
         elif webroot:
-                config = files.template(
+            config = files.template(
                 src=importlib.resources.files(__package__) / "webroot.nginx_config.j2",
                 dest=f"/etc/nginx/sites-available/{domain}",
                 user="root",
@@ -77,7 +82,8 @@ def add_nginx_domain(
             )
         elif proxy_port:
             config = files.template(
-                src=importlib.resources.files(__package__) / "proxy_pass.nginx_config.j2",
+                src=importlib.resources.files(__package__)
+                / "proxy_pass.nginx_config.j2",
                 dest=f"/etc/nginx/sites-available/{domain}",
                 user="root",
                 group="root",
@@ -102,12 +108,12 @@ def add_nginx_domain(
             group="root",
             present=enabled,
         )
-        if config.changed or config_link.changed:
-            systemd.service(
-                name="NGINX should be enabled and running",
-                service="nginx.service",
-                running=True,
-                enabled=True,
-                restarted=True,
-            )
-
+        if not skip_restart:
+            if config.changed or config_link.changed:
+                systemd.service(
+                    name="NGINX should be enabled and running",
+                    service="nginx.service",
+                    running=True,
+                    enabled=True,
+                    restarted=True,
+                )
