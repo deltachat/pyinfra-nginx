@@ -1,1 +1,1 @@
-from .nginx import deploy_nginx, add_nginx_domain
+from .nginx import deploy_nginx, nginx_deployer, NGINX
