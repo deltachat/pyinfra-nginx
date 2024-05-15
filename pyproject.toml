@@ -3,5 +3,8 @@ requires = ["setuptools>=45"]
 build-backend = "setuptools.build_meta"
 
 [project]
-name = "pyinfra-mailcow"
+name = "pyinfra-nginx"
 version = "0.1"
+dependencies = [
+    "pyinfra-acmetool @ git+https://github.com/deltachat/pyinfra-acmetool/",
+]
