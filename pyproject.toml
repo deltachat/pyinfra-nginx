@@ -8,3 +8,6 @@ version = "0.1"
 dependencies = [
     "pyinfra-acmetool @ git+https://github.com/deltachat/pyinfra-acmetool/",
 ]
+
+[tool.setuptools.package-data]
+pyinfra_nginx = ["*"]
