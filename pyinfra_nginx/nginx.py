@@ -45,6 +45,7 @@ class NGINX:
             redirect: str = None,
             enabled=True,
             acmetool=True,
+            websocket_support=False,
     ) -> bool:
         """Let a domain be handled by nginx, create a Let's Encrypt certificate for it, and deploy the config.
 
@@ -62,6 +63,7 @@ class NGINX:
         :param redirect: where to 301 redirect to, e.g. https://i.delta.chat$request_uri
         :param enabled: whether the site should be enabled at /etc/nginx/sites-enabled
         :param acmetool: whether acmetool should fetch TLS certs for the domain
+        :param websocket_support: whether websockets should be supported (with proxy_port only for now)
         :return whether the nginx config was changed and needs a reload
         """
         default_config_link = files.link(
@@ -92,6 +94,12 @@ class NGINX:
                     domain=domain,
                 )
             elif proxy_port:
+                if websocket_support:
+                    websocket_config = '''proxy_set_header\tUpgrade $http_upgrade;
+        proxy_set_header\tConnection "upgrade";
+        proxy_read_timeout\t86400;'''
+                else:
+                    websocket_config = ''
                 config = files.template(
                     src=importlib.resources.files(__package__)
                         / "proxy_pass.nginx_config.j2",
@@ -101,6 +109,7 @@ class NGINX:
                     mode="644",
                     domain=domain,
                     proxy_port=proxy_port,
+                    websocket_config=websocket_config,
                 )
             elif redirect:
                 config = files.template(
