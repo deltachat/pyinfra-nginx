@@ -69,7 +69,15 @@ class NGINX:
         default_config_link = files.link(
             path="/etc/nginx/sites-enabled/default", present=False
         )
-        self.reload |= default_config_link.changed
+        if default_config_link.changed:
+            systemd.service(
+                name="enable and start NGINX service",
+                service="nginx.service",
+                running=True,
+                enabled=True,
+                reloaded=nginx.reload,
+            )
+
 
         if acmetool:
             deploy_acmetool(nginx_hook=True, domains=[domain])
