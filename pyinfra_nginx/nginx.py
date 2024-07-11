@@ -80,7 +80,7 @@ class NGINX:
 
 
         if acmetool:
-            deploy_acmetool(nginx_hook=True, domains=[domain])
+            deploy_acmetool(reload_hook="systemctl reload nginx", domains=[domain])
 
         if enabled:
             if config_path:
