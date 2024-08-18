@@ -75,7 +75,7 @@ class NGINX:
                 service="nginx.service",
                 running=True,
                 enabled=True,
-                reloaded=nginx.reload,
+                reloaded=self.reload,
             )
 
 
