@@ -42,6 +42,8 @@ class NGINX:
             config_path: str = None,
             webroot: str = None,
             proxy_port: int = None,
+            cache_proxy: str = None,
+            cache_time: str = "1h",
             redirect: str = None,
             enabled=True,
             acmetool=True,
@@ -60,6 +62,8 @@ class NGINX:
         :param config_path: the local path to the nginx config file
         :param webroot: path to a webroot directory, e.g. /var/www/staging/. Generates its own config from template.
         :param proxy_port: proxy_pass all HTTP traffic to some internal port
+        :param cache_proxy: proxy_pass all HTTP traffic to another domain, with 1 hour cache by default
+        :param cache_time: how long the cache_proxy is supposed to cache content
         :param redirect: where to 301 redirect to, e.g. https://i.delta.chat$request_uri
         :param enabled: whether the site should be enabled at /etc/nginx/sites-enabled
         :param acmetool: whether acmetool should fetch TLS certs for the domain
@@ -81,6 +85,12 @@ class NGINX:
 
         if acmetool:
             deploy_acmetool(reload_hook="systemctl reload nginx", domains=[domain])
+        if websocket_support:
+            websocket_config = '''proxy_set_header\tUpgrade $http_upgrade;
+        proxy_set_header\tConnection "upgrade";
+        proxy_read_timeout\t86400;'''
+        else:
+            websocket_config = ''
 
         if enabled:
             if config_path:
@@ -102,12 +112,6 @@ class NGINX:
                     domain=domain,
                 )
             elif proxy_port:
-                if websocket_support:
-                    websocket_config = '''proxy_set_header\tUpgrade $http_upgrade;
-        proxy_set_header\tConnection "upgrade";
-        proxy_read_timeout\t86400;'''
-                else:
-                    websocket_config = ''
                 config = files.template(
                     src=importlib.resources.files(__package__)
                         / "proxy_pass.nginx_config.j2",
@@ -118,6 +122,26 @@ class NGINX:
                     domain=domain,
                     proxy_port=proxy_port,
                     websocket_config=websocket_config,
+                )
+            elif cache_proxy:
+                files.directory(
+                    name="Create NGINX Cache directory",
+                    path="/var/cache/nginx",
+                    mode=700,
+                )
+                files.put(
+                    name="Enable cache in /etc/nginx/nginx.conf",
+                    src=importlib.resources.files(__package__)
+                        / "cache_proxy_http.conf",
+                    dest="/etc/nginx/conf.d/cache_proxy.conf",
+                )
+                config = files.template(
+                    src=importlib.resources.files(__package__) / "cache_proxy.nginx_config.j2",
+                    dest=f"/etc/nginx/sites-available/{domain}",
+                    domain=domain,
+                    websocket_config=websocket_config,
+                    cache_proxy=cache_proxy,
+                    cache_time=cache_time,
                 )
             elif redirect:
                 config = files.template(
