@@ -5,7 +5,7 @@ This is a pyinfra module to manage an nginx web server.
 ## Install
 
 Just install this python package with
-`pip install git+https://git.0x90.space/0x90/pyinfra-nginx/`
+`pip install git+https://github.com/deltachat/pyinfra-nginx/`
 (preferably to your virtual environment).
 
 ## Usage
