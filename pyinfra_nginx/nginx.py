@@ -2,7 +2,7 @@ import contextlib
 import importlib.resources
 
 from pyinfra import host, logger
-from pyinfra.operations import files, apt, systemd
+from pyinfra.operations import files, apt, server, systemd
 from pyinfra.facts.deb import DebPackages
 from pyinfra_acmetool import deploy_acmetool
 
@@ -23,6 +23,10 @@ def deploy_nginx():
 def nginx_deployer(reload_nginx: bool = False):
     nginx = NGINX(reload_nginx)
     yield nginx
+    server.shell(
+        name=f"Request TLS certificates",
+        commands=["acmetool --batch --xlog.severity=debug reconcile"],
+    )
     systemd.service(
         name="enable and start NGINX service",
         service="nginx.service",
@@ -78,9 +82,8 @@ class NGINX:
                 reloaded=self.reload,
             )
 
-
         if acmetool:
-            deploy_acmetool(reload_hook="systemctl reload nginx", domains=[domain])
+            deploy_acmetool(reload_hook="systemctl reload nginx", domains=[domain], request_later=True)
 
         if enabled:
             if config_path:
