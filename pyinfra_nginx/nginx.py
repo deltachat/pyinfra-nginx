@@ -7,7 +7,7 @@ from pyinfra.facts.deb import DebPackages
 from pyinfra_acmetool import deploy_acmetool
 
 
-def deploy_nginx():
+def deploy_nginx(**pyinfra_args):
     if not host.get_fact(DebPackages):
         raise DeployError(("Can't deploy prerequisites on non-deb system"))
 
@@ -20,12 +20,13 @@ def deploy_nginx():
 
 
 @contextlib.contextmanager
-def nginx_deployer(reload_nginx: bool = False):
-    nginx = NGINX(reload_nginx)
+def nginx_deployer(reload_nginx: bool = False, **pyinfra_args):
+    nginx = NGINX(reload_nginx, pyinfra_args)
     yield nginx
     server.shell(
         name=f"Request TLS certificates",
         commands=["acmetool --batch --xlog.severity=debug reconcile"],
+        **pyinfra_args
     )
     systemd.service(
         name="enable and start NGINX service",
@@ -33,12 +34,14 @@ def nginx_deployer(reload_nginx: bool = False):
         running=True,
         enabled=True,
         reloaded=nginx.reload,
+        **pyinfra_args
     )
 
 
 class NGINX:
-    def __init__(self, reload):
+    def __init__(self, reload, pyinfra_args):
         self.reload = reload
+        self.pyinfra_args = pyinfra_args
 
     def add_nginx_domain(
             self,
@@ -80,10 +83,16 @@ class NGINX:
                 running=True,
                 enabled=True,
                 reloaded=self.reload,
+                **self.pyinfra_args,
             )
 
         if acmetool:
-            deploy_acmetool(reload_hook="systemctl reload nginx", domains=[domain], request_later=True)
+            deploy_acmetool(
+                reload_hook="systemctl reload nginx",
+                domains=[domain],
+                request_later=True,
+                **self.pyinfra_args
+            )
 
         if enabled:
             if config_path:
@@ -93,6 +102,7 @@ class NGINX:
                     user="root",
                     group="root",
                     mode="644",
+                    **self.pyinfra_args,
                 )
             elif webroot:
                 config = files.template(
@@ -103,6 +113,7 @@ class NGINX:
                     mode="644",
                     webroot=webroot,
                     domain=domain,
+                    **self.pyinfra_args,
                 )
             elif proxy_port:
                 if websocket_support:
@@ -121,6 +132,7 @@ class NGINX:
                     domain=domain,
                     proxy_port=proxy_port,
                     websocket_config=websocket_config,
+                    **self.pyinfra_args,
                 )
             elif redirect:
                 config = files.template(
@@ -131,6 +143,7 @@ class NGINX:
                     mode="644",
                     domain=domain,
                     redirect=redirect,
+                    **self.pyinfra_args,
                 )
             try:
                 self.reload |= config.changed
@@ -144,5 +157,6 @@ class NGINX:
             user="root",
             group="root",
             present=enabled,
+            **self.pyinfra_args,
         )
         self.reload |= config_link.changed
