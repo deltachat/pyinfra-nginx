@@ -8,7 +8,7 @@ from pyinfra_acmetool import deploy_acmetool
 
 
 def deploy_nginx(**pyinfra_args):
-    if not host.get_fact(DebPackages):
+    if not host.get_fact(DebPackages, **pyinfra_args):
         raise DeployError(("Can't deploy prerequisites on non-deb system"))
 
     apt.update(cache_time=3600 * 24)
