@@ -18,6 +18,35 @@ def deploy_nginx(**pyinfra_args):
         packages=["nginx-extras"],
     )
 
+    # Define $connection_upgrade so proxied vhosts can set the Connection
+    # header per-request (upgrade for websockets, close otherwise) instead of
+    # hardcoding "upgrade", which breaks ordinary keepalive requests.
+    upgrade_map = files.put(
+        name="Add connection_upgrade map",
+        src=importlib.resources.files(__package__) / "connection_upgrade.conf",
+        dest="/etc/nginx/conf.d/connection_upgrade.conf",
+        user="root",
+        group="root",
+        mode="644",
+    )
+
+    # The abandoned ngx_http_uploadprogress module (shipped by nginx-extras)
+    # segfaults nginx workers under concurrent proxied request bursts; unload
+    # the module
+    uploadprogress = files.link(
+        name="Disable uploadprogress nginx module",
+        path="/etc/nginx/modules-enabled/50-mod-http-uploadprogress.conf",
+        present=False,
+    )
+
+    systemd.service(
+        name="reload NGINX after base config changes",
+        service="nginx.service",
+        running=True,
+        enabled=True,
+        reloaded=(upgrade_map.changed or uploadprogress.changed),
+    )
+
 
 @contextlib.contextmanager
 def nginx_deployer(reload_nginx: bool = False, **pyinfra_args):
@@ -118,7 +147,7 @@ class NGINX:
             elif proxy_port:
                 if websocket_support:
                     websocket_config = '''proxy_set_header\tUpgrade $http_upgrade;
-        proxy_set_header\tConnection "upgrade";
+        proxy_set_header\tConnection $connection_upgrade;
         proxy_read_timeout\t86400;'''
                 else:
                     websocket_config = ''
