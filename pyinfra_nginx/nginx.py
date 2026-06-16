@@ -1,10 +1,39 @@
 import contextlib
 import importlib.resources
+from io import StringIO
 
 from pyinfra import host, logger
 from pyinfra.operations import files, apt, server, systemd
 from pyinfra.facts.deb import DebPackages
 from pyinfra_acmetool import deploy_acmetool
+
+
+def deploy_anubis(**pyinfra_args):
+    apt.deb(
+        name="install anubis 1.24.0 deb from GitHub",
+        src="https://github.com/TecharoHQ/anubis/releases/download/v1.24.0/anubis_1.24.0_amd64.deb",
+        **pyinfra_args,
+    )
+    server.user(
+        user="anubis",
+        group="www-data",
+        **pyinfra_args,
+    )
+    files.directory(
+        path="/var/run/anubis",
+        group="www-data",
+        mode="770",
+        **pyinfra_args,
+    )
+    systemd_user = files.replace(
+        name="Set anubis user in systemd",
+        path="/lib/systemd/system/anubis@.service",
+        text="DynamicUser=yes",
+        replace="User=anubis",
+        **pyinfra_args,
+    )
+    if systemd_user.changed:
+        systemd.daemon_reload(**pyinfra_args)
 
 
 def deploy_nginx(**pyinfra_args):
@@ -20,7 +49,9 @@ def deploy_nginx(**pyinfra_args):
 
 
 @contextlib.contextmanager
-def nginx_deployer(reload_nginx: bool = False, **pyinfra_args):
+def nginx_deployer(reload_nginx: bool = False, anubis=False, **pyinfra_args):
+    if anubis:
+        deploy_anubis(**pyinfra_args)
     nginx = NGINX(reload_nginx, pyinfra_args)
     yield nginx
     server.shell(
@@ -53,6 +84,7 @@ class NGINX:
             enabled=True,
             acmetool=True,
             websocket_support=False,
+            anubis=False,
     ) -> bool:
         """Let a domain be handled by nginx, create a Let's Encrypt certificate for it, and deploy the config.
 
@@ -71,6 +103,7 @@ class NGINX:
         :param enabled: whether the site should be enabled at /etc/nginx/sites-enabled
         :param acmetool: whether acmetool should fetch TLS certs for the domain
         :param websocket_support: whether websockets should be supported (with proxy_port only for now)
+        :param anubis: whether anubis should be enabled for the page
         :return whether the nginx config was changed and needs a reload
         """
         default_config_link = files.link(
@@ -113,6 +146,7 @@ class NGINX:
                     mode="644",
                     webroot=webroot,
                     domain=domain,
+                    anubis=anubis,
                     **self.pyinfra_args,
                 )
             elif proxy_port:
@@ -132,6 +166,7 @@ class NGINX:
                     domain=domain,
                     proxy_port=proxy_port,
                     websocket_config=websocket_config,
+                    anubis=anubis,
                     **self.pyinfra_args,
                 )
             elif redirect:
@@ -150,6 +185,36 @@ class NGINX:
             except AttributeError:
                 logger.error("please pass either webroot, proxy_port, redirect, or config_path to add_nginx_domain")
                 raise
+
+        if anubis:
+            default_config = (
+                f"BIND=/var/run/anubis/{domain}-anubis.sock",
+                "BIND_NETWORK=unix",
+                "SOCKET_MODE=0666",
+                "DIFFICULTY=4",
+                "SERVE_ROBOTS_TXT=0",
+                f"POLICY_FNAME=/etc/anubis/{domain}.botPolicies.yaml",
+                f"TARGET=unix:///var/run/anubis/{domain}-nginx.sock",
+            )
+            anubis_conf = files.put(
+                name=f"Add anubis config for {domain}",
+                src=StringIO("\n".join(default_config)),
+                dest=f"/etc/anubis/{domain}.env",
+                **self.pyinfra_args,
+            )
+            files.link(
+                name=f"Set default anubis policies for {domain}",
+                path=f"/etc/anubis/{domain}.botPolicies.yaml",
+                target="/usr/share/doc/anubis/botPolicies.yaml",
+                **self.pyinfra_args,
+            )
+            systemd.service(
+                service=f"anubis@{domain}.service",
+                enabled=enabled,
+                running=enabled,
+                restarted=anubis_conf.changed,
+                **self.pyinfra_args,
+            )
 
         config_link = files.link(
             path=f"/etc/nginx/sites-enabled/{domain}",

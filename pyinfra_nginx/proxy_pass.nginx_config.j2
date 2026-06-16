@@ -1,4 +1,9 @@
 server {
+    listen [::]:443 ssl http2;
+    listen 443 ssl http2;
+    ssl_certificate /var/lib/acme/live/{{ domain }}/fullchain; # managed by acmetool
+    ssl_certificate_key /var/lib/acme/live/{{ domain }}/privkey; # managed by acmetool
+
     server_name {{ domain }};
     client_max_body_size 512m;
     underscores_in_headers on;
@@ -9,11 +14,32 @@ server {
         proxy_set_header    X-Forwarded-For     $proxy_add_x_forwarded_for;
         proxy_set_header    X-Forwarded-Proto   $scheme;
         {{ websocket_config }}
-        proxy_pass http://127.0.0.1:{{ proxy_port }}/;
-	}
 
-    listen [::]:443 ssl http2;
-    listen 443 ssl http2;
-    ssl_certificate /var/lib/acme/live/{{ domain }}/fullchain; # managed by acmetool
-    ssl_certificate_key /var/lib/acme/live/{{ domain }}/privkey; # managed by acmetool
+        {% if not anubis %}
+        proxy_pass http://127.0.0.1:{{ proxy_port }}/;
+        {% else %}
+        proxy_pass http://{{ domain }}-anubis;
+        {% endif %}
+	}
 }
+
+{% if anubis %}
+server {
+    listen unix:/var/run/anubis/{{ domain }}-nginx.sock;
+    server_name {{ domain }};
+    client_max_body_size 512m;
+    underscores_in_headers on;
+
+    location / {
+        proxy_set_header    Host                $http_host;
+        proxy_set_header    X-Real-IP           $remote_addr;
+        proxy_set_header    X-Forwarded-For     $proxy_add_x_forwarded_for;
+        proxy_set_header    X-Forwarded-Proto   $scheme;
+
+        proxy_pass http://127.0.0.1:{{ proxy_port }}/;
+    }
+}
+upstream {{ domain }}-anubis {
+    server unix:/var/run/anubis/{{ domain }}-anubis.sock;
+}
+{% endif %}

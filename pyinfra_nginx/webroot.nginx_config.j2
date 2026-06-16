@@ -1,13 +1,33 @@
 server {
     server_name {{ domain }};
-    root {{ webroot }};
-
-    location / {
-        try_files $uri $uri/ $uri.html =404;
-	}
-
     listen [::]:443 ssl http2;
     listen 443 ssl http2;
     ssl_certificate /var/lib/acme/live/{{ domain }}/fullchain; # managed by acmetool
     ssl_certificate_key /var/lib/acme/live/{{ domain }}/privkey; # managed by acmetool
+
+    {% if not anubis %}
+    root {{ webroot }};
+    location / {
+        try_files $uri $uri/ $uri.html =404;
+	}
+	{% else %}
+    proxy_pass http://{{ domain }}-anubis;
+    {% endif %}
 }
+
+{% if anubis %}
+server {
+    listen unix:/var/run/anubis/{{ domain }}-nginx.sock;
+    server_name {{ domain }};
+    client_max_body_size 512m;
+    underscores_in_headers on;
+
+    root {{ webroot }};
+    location / {
+        try_files $uri $uri/ $uri.html =404;
+	}
+}
+upstream {{ domain }}-anubis {
+    server unix:/var/run/anubis/{{ domain }}-anubis.sock;
+}
+{% endif %}
