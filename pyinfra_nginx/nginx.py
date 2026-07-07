@@ -16,6 +16,7 @@ def deploy_nginx(**pyinfra_args):
     apt.packages(
         name="Install nginx-extras",
         packages=["nginx-extras"],
+        **pyinfra_args,
     )
 
     # Define $connection_upgrade so proxied vhosts can set the Connection
@@ -25,9 +26,13 @@ def deploy_nginx(**pyinfra_args):
         name="Add connection_upgrade map",
         src=importlib.resources.files(__package__) / "connection_upgrade.conf",
         dest="/etc/nginx/conf.d/connection_upgrade.conf",
-        user="root",
-        group="root",
-        mode="644",
+        **pyinfra_args,
+    )
+    log_formats = files.put(
+        name="Add log formats",
+        src=importlib.resources.files(__package__) / "log_formats.conf",
+        dest="/etc/nginx/conf.d/log_formats.conf",
+        **pyinfra_args,
     )
 
     # The abandoned ngx_http_uploadprogress module (shipped by nginx-extras)
@@ -37,6 +42,19 @@ def deploy_nginx(**pyinfra_args):
         name="Disable uploadprogress nginx module",
         path="/etc/nginx/modules-enabled/50-mod-http-uploadprogress.conf",
         present=False,
+        **pyinfra_args,
+    )
+    default_config_link = files.link(
+        path="/etc/nginx/sites-enabled/default", present=False, ** pyinfra_args,
+    )
+
+    systemd.service(
+        name="reload NGINX after base config changes",
+        service="nginx.service",
+        running=True,
+        enabled=True,
+        reloaded=(upgrade_map.changed or uploadprogress.changed or default_config_link.changed or log_formats.changed),
+        **pyinfra_args,
     )
 
     systemd.service(
@@ -102,19 +120,6 @@ class NGINX:
         :param websocket_support: whether websockets should be supported (with proxy_port only for now)
         :return whether the nginx config was changed and needs a reload
         """
-        default_config_link = files.link(
-            path="/etc/nginx/sites-enabled/default", present=False
-        )
-        if default_config_link.changed:
-            systemd.service(
-                name="enable and start NGINX service",
-                service="nginx.service",
-                running=True,
-                enabled=True,
-                reloaded=self.reload,
-                **self.pyinfra_args,
-            )
-
         if acmetool:
             deploy_acmetool(
                 reload_hook="systemctl reload nginx",
