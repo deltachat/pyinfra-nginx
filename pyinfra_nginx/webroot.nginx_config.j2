@@ -25,7 +25,7 @@ server {
 
 {% if anubis %}
 server {
-    listen unix:/var/run/anubis/{{ domain }}-nginx.sock;
+    listen unix:/run/anubis/{{ domain }}-nginx.sock;
     server_name {{ domain }};
     client_max_body_size 512m;
     underscores_in_headers on;
@@ -36,6 +36,6 @@ server {
 	}
 }
 upstream {{ domain }}-anubis {
-    server unix:/var/run/anubis/{{ domain }}-anubis.sock;
+    server unix:/run/anubis/{{ domain }}-anubis.sock;
 }
 {% endif %}

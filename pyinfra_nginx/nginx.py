@@ -19,10 +19,9 @@ def deploy_anubis(**pyinfra_args):
         group="www-data",
         **pyinfra_args,
     )
-    files.directory(
-        path="/var/run/anubis",
-        group="www-data",
-        mode="770",
+    files.put(
+        dest="/etc/tmpfiles.d/anubis.conf",
+        src=StringIO("d /run/anubis 0770 root www-data"),
         **pyinfra_args,
     )
     systemd_user = files.replace(
@@ -222,13 +221,13 @@ class NGINX:
 
         if anubis:
             default_config = (
-                f"BIND=/var/run/anubis/{domain}-anubis.sock",
+                f"BIND=/run/anubis/{domain}-anubis.sock",
                 "BIND_NETWORK=unix",
                 "SOCKET_MODE=0666",
                 "DIFFICULTY=4",
                 "SERVE_ROBOTS_TXT=0",
                 f"POLICY_FNAME=/etc/anubis/{domain}.botPolicies.yaml",
-                f"TARGET=unix:///var/run/anubis/{domain}-nginx.sock",
+                f"TARGET=unix:///run/anubis/{domain}-nginx.sock",
             )
             anubis_conf = files.put(
                 name=f"Add anubis config for {domain}",
