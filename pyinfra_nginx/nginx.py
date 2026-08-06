@@ -24,11 +24,10 @@ def deploy_anubis(**pyinfra_args):
         src=StringIO("d /run/anubis 0770 root www-data"),
         **pyinfra_args,
     )
-    systemd_user = files.replace(
+    systemd_user = files.put(
         name="Set anubis user in systemd",
-        path="/lib/systemd/system/anubis@.service",
-        text="DynamicUser=yes",
-        replace="User=anubis",
+        dest="/etc/systemd/system/anubis@.service.d/override.conf",
+        src=StringIO("[Service]\nDynamicUser=no\nUser=anubis"),
         **pyinfra_args,
     )
     if systemd_user.changed:
