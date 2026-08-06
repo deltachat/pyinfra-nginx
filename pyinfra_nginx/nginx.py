@@ -3,6 +3,7 @@ import importlib.resources
 from io import StringIO
 
 from pyinfra import host, logger
+from pyinfra.api.exceptions import DeployError
 from pyinfra.operations import files, apt, server, systemd
 from pyinfra.facts.deb import DebPackages
 from pyinfra_acmetool import deploy_acmetool
