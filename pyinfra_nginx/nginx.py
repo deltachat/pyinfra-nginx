@@ -131,6 +131,7 @@ class NGINX:
             acmetool=True,
             websocket_support=False,
             anubis=False,
+            error_log: str = "/dev/null",
     ) -> bool:
         """Let a domain be handled by nginx, create a Let's Encrypt certificate for it, and deploy the config.
 
@@ -150,6 +151,7 @@ class NGINX:
         :param acmetool: whether acmetool should fetch TLS certs for the domain
         :param websocket_support: whether websockets should be supported (with proxy_port only for now)
         :param anubis: whether anubis should be enabled for the page
+        :param error_log: where to log errors in nginx
         :return whether the nginx config was changed and needs a reload
         """
         if acmetool:
@@ -180,6 +182,7 @@ class NGINX:
                     webroot=webroot,
                     domain=domain,
                     anubis=anubis,
+                    error_log=error_log,
                     **self.pyinfra_args,
                 )
             elif proxy_port:
@@ -200,6 +203,7 @@ class NGINX:
                     proxy_port=proxy_port,
                     websocket_config=websocket_config,
                     anubis=anubis,
+                    error_log=error_log,
                     **self.pyinfra_args,
                 )
             elif redirect:
@@ -211,6 +215,7 @@ class NGINX:
                     mode="644",
                     domain=domain,
                     redirect=redirect,
+                    error_log=error_log,
                     **self.pyinfra_args,
                 )
             try:

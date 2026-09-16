@@ -3,6 +3,7 @@ server {
     listen 443 ssl;
     ssl_certificate /var/lib/acme/live/{{ domain }}/fullchain; # managed by acmetool
     ssl_certificate_key /var/lib/acme/live/{{ domain }}/privkey; # managed by acmetool
+    error_log {{ error_log }};
 
     server_name {{ domain }};
     client_max_body_size 512m;

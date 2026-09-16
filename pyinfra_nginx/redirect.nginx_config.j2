@@ -7,4 +7,5 @@ server {
     listen 443 ssl;
     ssl_certificate /var/lib/acme/live/{{ domain }}/fullchain;
     ssl_certificate_key /var/lib/acme/live/{{ domain }}/privkey;
+    error_log {{ error_log }};
 }
